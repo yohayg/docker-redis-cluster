@@ -38,7 +38,7 @@ bash:
 	docker-compose exec redis-cluster /bin/bash
 
 cli:
-	docker-compose exec redis-cluster /redis/src/redis-cli -p 7000
+	docker-compose exec redis-cluster /redis/src/redis-cli -p 30001
 
 build-3.0:
 	docker build --build-arg redis_version=3.0.0 -t grokzen/redis-cluster .

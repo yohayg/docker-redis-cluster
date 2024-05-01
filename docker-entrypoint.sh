@@ -26,10 +26,17 @@ if [ "$1" = 'redis-cluster' ]; then
       SLAVES_PER_MASTER=1
     fi
 
+    if [ -z "$BIND_ADDRESS" ]; then # Default to any IPv4 address
+      BIND_ADDRESS=0.0.0.0
+    fi
+
     max_port=$(($INITIAL_PORT + $MASTERS * ( $SLAVES_PER_MASTER  + 1 ) - 1))
     first_standalone=$(($max_port + 1))
     if [ "$STANDALONE" = "true" ]; then
-      max_port=$(($max_port + 2))
+      STANDALONE=2
+    fi
+    if [ ! -z "$STANDALONE" ]; then
+      max_port=$(($max_port + $STANDALONE))
     fi
 
     for port in $(seq $INITIAL_PORT $max_port); do
@@ -49,10 +56,10 @@ if [ "$1" = 'redis-cluster' ]; then
       fi
 
       if [ "$port" -lt "$first_standalone" ]; then
-        PORT=${port} envsubst < /redis-conf/redis-cluster.tmpl > /redis-conf/${port}/redis.conf
+        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis-cluster.tmpl > /redis-conf/${port}/redis.conf
         nodes="$nodes $IP:$port"
       else
-        PORT=${port} envsubst < /redis-conf/redis.tmpl > /redis-conf/${port}/redis.conf
+        PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis.tmpl > /redis-conf/${port}/redis.conf
       fi
 
       if [ "$port" -lt $(($INITIAL_PORT + $MASTERS)) ]; then
@@ -69,6 +76,10 @@ if [ "$1" = 'redis-cluster' ]; then
     supervisord -c /etc/supervisor/supervisord.conf
     sleep 3
 
+    #
+    ## Check the version of redis-cli and if we run on a redis server below 5.0
+    ## If it is below 5.0 then we use the redis-trib.rb to build the cluster
+    #
     /redis/src/redis-cli --version | grep -E "redis-cli 3.0|redis-cli 3.2|redis-cli 4.0"
 
     if [ $? -eq 0 ]
